@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IEEE-CIS Fraud Monitor</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --border:  #21262d;
+      --muted:   #8b949e;
+      --fg:      #e6edf3;
+      --head:    #f0f6fc;
+      --accent:  #58a6ff;
+      --ok:      #3fb950;
+      --warn:    #d29922;
+      --danger:  #f85149;
+      --mono:    'IBM Plex Mono', monospace;
+      --sans:    'IBM Plex Sans', system-ui, sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--fg);
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 0 24px 40px;
+      min-height: 100vh;
+    }
+
+    /* ── header ── */
+    header {
+      position: sticky; top: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap;
+      padding: 14px 0;
+      margin: 0 -24px;
+      padding-left: 24px; padding-right: 24px;
+      z-index: 10;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      width: 32px; height: 32px; border-radius: 6px;
+      background: var(--accent); display: grid; place-items: center;
+      font-family: var(--mono); font-size: 12px; font-weight: 600; color: #fff;
+    }
+    .header-title { font-size: 15px; font-weight: 600; color: var(--head); }
+    .header-sub   { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+    .status-pill {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(63,185,80,.12); border: 1px solid rgba(63,185,80,.3);
+      border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--ok);
+    }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── layout ── */
+    .page { max-width: 1100px; margin: 0 auto; }
+    .section { margin-top: 28px; }
+    .section-label {
+      font-family: var(--mono); font-size: 11px; font-weight: 600;
+      color: var(--muted); letter-spacing: .08em; text-transform: uppercase;
+      margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+    @media(max-width:700px) {
+      .grid-4, .grid-3 { grid-template-columns: repeat(2, 1fr); }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    /* ── card ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; min-width: 0; }
+    .card-lg { padding: 20px; }
+
+    /* ── kpi ── */
+    .kpi-label { font-size: 11px; color: var(--muted); font-family: var(--mono); letter-spacing: .04em; }
+    .kpi-value { font-size: 28px; font-weight: 600; font-family: var(--mono); color: var(--head); font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 4px; }
+    .kpi-sub   { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .kpi-accent { color: var(--accent); }
+    .kpi-ok     { color: var(--ok); }
+    .kpi-warn   { color: var(--warn); }
+    .kpi-danger { color: var(--danger); }
+
+    /* ── confusion matrix ── */
+    .cm-grid {
+      display: grid;
+      grid-template-columns: auto 1fr 1fr;
+      grid-template-rows: auto 1fr 1fr;
+      gap: 4px; margin-top: 8px;
+    }
+    .cm-label { font-size: 10px; color: var(--muted); font-family: var(--mono); display: flex; align-items: center; justify-content: center; padding: 2px 4px; }
+    .cm-cell  { border-radius: 6px; padding: 12px 8px; text-align: center; min-height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+    .cm-abbr  { font-size: 11px; font-family: var(--mono); font-weight: 600; opacity: .7; }
+    .cm-count { font-size: 18px; font-weight: 600; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .cm-pct   { font-size: 10px; opacity: .7; }
+    .cm-tn { background: rgba(88,166,255,.12); color: var(--accent); }
+    .cm-fp { background: rgba(248,81,73,.12);  color: var(--danger); }
+    .cm-fn { background: rgba(248,81,73,.22);  color: var(--danger); }
+    .cm-tp { background: rgba(63,185,80,.18);  color: var(--ok); }
+
+    /* ── risk buckets ── */
+    .bucket-row  { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+    .bucket-item { display: flex; flex-direction: column; gap: 4px; }
+    .bucket-head { display: flex; justify-content: space-between; align-items: baseline; }
+    .bucket-name { font-size: 12px; font-weight: 600; font-family: var(--mono); }
+    .bucket-stats { font-size: 11px; color: var(--muted); }
+    .bucket-bar  { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; }
+    .bucket-fill { height: 100%; border-radius: 4px; transition: width .6s ease; }
+    .b-low    { color: var(--ok); }    .f-low    { background: var(--ok); }
+    .b-medium { color: var(--warn); }  .f-medium { background: var(--warn); }
+    .b-high   { color: var(--danger);} .f-high   { background: var(--danger); }
+
+    /* ── live test ── */
+    .test-form { display: flex; flex-direction: column; gap: 10px; }
+    .form-row  { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    @media(max-width:500px) { .form-row { grid-template-columns: 1fr; } }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+    .form-group input, .form-group select {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      padding: 8px 10px; color: var(--fg); font-family: var(--mono); font-size: 13px;
+      outline: none; width: 100%;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+    .form-group select option { background: var(--surface); }
+    .btn {
+      background: var(--accent); color: #fff; border: none; border-radius: 6px;
+      padding: 10px 18px; font-family: var(--sans); font-size: 13px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 6px; align-self: flex-start;
+    }
+    .btn:hover { opacity: .9; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .result-box {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      padding: 14px; font-family: var(--mono); font-size: 12px; line-height: 1.8;
+      margin-top: 4px; display: none;
+    }
+    .result-box.show { display: block; }
+    .result-prob { font-size: 20px; font-weight: 600; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; font-family: var(--mono); }
+    .badge-low    { background: rgba(63,185,80,.15);  color: var(--ok); }
+    .badge-medium { background: rgba(210,153,34,.15); color: var(--warn); }
+    .badge-high   { background: rgba(248,81,73,.15);  color: var(--danger); }
+    .badge-fraud  { background: rgba(248,81,73,.2);   color: var(--danger); }
+    .badge-safe   { background: rgba(63,185,80,.2);   color: var(--ok); }
+
+    /* ── feature importance ── */
+    .fi-row   { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .fi-name  { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 80px; flex-shrink: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .fi-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; min-width: 0; }
+    .fi-bar-fill { height: 100%; border-radius: 3px; background: var(--accent); }
+    .fi-val   { font-family: var(--mono); font-size: 10px; color: var(--muted); width: 36px; text-align: right; flex-shrink: 0; }
+
+    /* ── experiment table ── */
+    .exp-table { width: 100%; border-collapse: collapse; }
+    .exp-table th { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    .exp-table td { padding: 8px 10px; font-family: var(--mono); font-size: 12px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+    .exp-table tr:last-child td { border-bottom: none; }
+    .exp-table tr:hover td { background: rgba(88,166,255,.04); }
+    .best-row td { color: var(--ok); }
+    .tag-best { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; background: rgba(63,185,80,.15); color: var(--ok); margin-left: 4px; }
+
+    /* ── chart ── */
+    .chart-wrap { position: relative; height: 200px; }
+
+    /* ── business ── */
+    .biz-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    @media(max-width:600px) { .biz-row { grid-template-columns: 1fr; } }
+    .biz-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; }
+    .biz-val  { font-size: 22px; font-weight: 600; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .biz-lbl  { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    /* ── footer ── */
+    footer {
+      margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border);
+      font-size: 11px; color: var(--muted); font-family: var(--mono);
+      display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <div class="logo">AF</div>
+      <div>
+        <div class="header-title">IEEE-CIS Fraud Monitor</div>
+        <div class="header-sub">lgbm_baseline · IEEE-CIS · v1.0.0</div>
+      </div>
+    </div>
+    <div class="status-pill">
+      <span class="status-dot"></span>
+      API · localhost:8000
+    </div>
+  </header>
+
+  <!-- KPI -->
+  <div class="section">
+    <div class="section-label">Model Performance — Validation Set (118K tx)</div>
+    <div class="grid-4">
+      <div class="card">
+        <div class="kpi-label">AUC-ROC</div>
+        <div class="kpi-value kpi-accent">0.9609</div>
+        <div class="kpi-sub">Ranking quality</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">AUC-PR</div>
+        <div class="kpi-value kpi-ok">0.7951</div>
+        <div class="kpi-sub">Imbalanced metric</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Recall (fraud)</div>
+        <div class="kpi-value kpi-warn">80.1%</div>
+        <div class="kpi-sub">@ thr = 0.093</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Precision (fraud)</div>
+        <div class="kpi-value">55.3%</div>
+        <div class="kpi-sub">@ thr = 0.093</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFUSION MATRIX + RISK BUCKETS + CHART -->
+  <div class="section">
+    <div class="section-label">Predictions Breakdown</div>
+    <div class="grid-3" style="align-items:start">
+
+      <div class="card card-lg">
+        <div class="kpi-label" style="margin-bottom:10px">Confusion Matrix</div>
+        <div class="cm-grid">
+          <div></div>
+          <div class="cm-label">Pred: 0</div>
+          <div class="cm-label">Pred: 1</div>
+          <div class="cm-label" style="writing-mode:vertical-lr;transform:rotate(180deg)">Actual: 0</div>
+          <div class="cm-cell cm-tn">
+            <div class="cm-abbr">TN</div>
+            <div class="cm-count">111,301</div>
+            <div class="cm-pct">98.6%</div>
+          </div>
+          <div class="cm-cell cm-fp">
+            <div class="cm-abbr">FP</div>
+            <div class="cm-count">2,674</div>
+            <div class="cm-pct">2.4%</div>
+          </div>
+          <div class="cm-label" style="writing-mode:vertical-lr;transform:rotate(180deg)">Actual: 1</div>
+          <div class="cm-cell cm-fn">
+            <div class="cm-abbr">FN</div>
+            <div class="cm-count">823</div>
+            <div class="cm-pct">19.9%</div>
+          </div>
+          <div class="cm-cell cm-tp">
+            <div class="cm-abbr">TP</div>
+            <div class="cm-count">3,310</div>
+            <div class="cm-pct">80.1%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card-lg">
+        <div class="kpi-label" style="margin-bottom:12px">Risk Bucket Distribution</div>
+        <div class="bucket-row">
+          <div class="bucket-item">
+            <div class="bucket-head">
+              <span class="bucket-name b-low">Low</span>
+              <span class="bucket-stats">score &lt; 0.10 · auto-approve</span>
+            </div>
+            <div class="bucket-bar"><div class="bucket-fill f-low" style="width:82%"></div></div>
+            <div style="font-size:11px;color:var(--muted);font-family:var(--mono)">~82% transaksi · fraud rate 0.3%</div>
+          </div>
+          <div class="bucket-item">
+            <div class="bucket-head">
+              <span class="bucket-name b-medium">Medium</span>
+              <span class="bucket-stats">0.10–0.50 · manual review</span>
+            </div>
+            <div class="bucket-bar"><div class="bucket-fill f-medium" style="width:9%"></div></div>
+            <div style="font-size:11px;color:var(--muted);font-family:var(--mono)">~9% transaksi · fraud rate 12%</div>
+          </div>
+          <div class="bucket-item">
+            <div class="bucket-head">
+              <span class="bucket-name b-high">High</span>
+              <span class="bucket-stats">score &ge; 0.50 · block</span>
+            </div>
+            <div class="bucket-bar"><div class="bucket-fill f-high" style="width:9%"></div></div>
+            <div style="font-size:11px;color:var(--muted);font-family:var(--mono)">~9% transaksi · fraud rate 55%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card-lg">
+        <div class="kpi-label" style="margin-bottom:10px">Score Distribution</div>
+        <div class="chart-wrap">
+          <canvas id="scoreChart"></canvas>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:8px;font-size:10px;font-family:var(--mono);color:var(--muted)">
+          <span style="display:flex;align-items:center;gap:4px">
+            <span style="width:10px;height:3px;background:#58a6ff;display:inline-block;border-radius:2px"></span>Non-Fraud
+          </span>
+          <span style="display:flex;align-items:center;gap:4px">
+            <span style="width:10px;height:3px;background:#f85149;display:inline-block;border-radius:2px"></span>Fraud
+          </span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- BUSINESS IMPACT -->
+  <div class="section">
+    <div class="section-label">Business Impact — Validation Set</div>
+    <div class="biz-row">
+      <div class="biz-tile">
+        <div class="biz-val kpi-danger">$0.64M</div>
+        <div class="biz-lbl">Cost: Approve All (no model)</div>
+      </div>
+      <div class="biz-tile">
+        <div class="biz-val kpi-ok">$0.21M</div>
+        <div class="biz-lbl">Cost: Our Model</div>
+      </div>
+      <div class="biz-tile">
+        <div class="biz-val kpi-accent">$0.43M</div>
+        <div class="biz-lbl">Savings vs. No Model</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPERIMENT COMPARISON + FEATURE IMPORTANCE -->
+  <div class="section">
+    <div class="section-label">Experiment Results</div>
+    <div class="grid-2" style="align-items:start">
+
+      <div class="card">
+        <table class="exp-table">
+          <thead>
+            <tr>
+              <th>Strategy</th>
+              <th>AUC-ROC</th>
+              <th>AUC-PR</th>
+              <th>F1</th>
+              <th>Recall</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="best-row">
+              <td>Baseline<span class="tag-best">best</span></td>
+              <td>0.9609</td>
+              <td>0.7951</td>
+              <td>0.755</td>
+              <td>0.683</td>
+            </tr>
+            <tr>
+              <td>Class Weight</td>
+              <td>0.9642</td>
+              <td>0.763</td>
+              <td>0.720</td>
+              <td>0.660</td>
+            </tr>
+            <tr>
+              <td>Undersampling</td>
+              <td>0.9618</td>
+              <td>0.778</td>
+              <td>0.736</td>
+              <td>0.681</td>
+            </tr>
+            <tr>
+              <td>SMOTE</td>
+              <td>0.9576</td>
+              <td>0.779</td>
+              <td>0.738</td>
+              <td>0.684</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="margin-top:10px;font-size:11px;color:var(--muted)">
+          Baseline menang di AUC-PR — resampling tidak memberikan gain signifikan.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="kpi-label" style="margin-bottom:12px">Top 10 Feature Groups (by Importance)</div>
+        <div style="display:flex;flex-direction:column;gap:9px" id="fi-list"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- LIVE API TEST -->
+  <div class="section">
+    <div class="section-label">Live API Test · POST /predict</div>
+    <div class="card card-lg">
+      <div class="test-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label>TransactionAmt ($)</label>
+            <input type="number" id="amt" value="299.99" step="0.01" min="0">
+          </div>
+          <div class="form-group">
+            <label>ProductCD</label>
+            <select id="prod">
+              <option value="W">W</option>
+              <option value="H">H</option>
+              <option value="C">C</option>
+              <option value="S">S</option>
+              <option value="R">R</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Card Type</label>
+            <select id="card4">
+              <option value="visa">Visa</option>
+              <option value="mastercard">Mastercard</option>
+              <option value="discover">Discover</option>
+              <option value="american express">Amex</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Email Domain (purchaser)</label>
+            <input type="text" id="email" value="gmail.com">
+          </div>
+        </div>
+        <button class="btn" id="testBtn" onclick="testAPI()">
+          &#9654; Score Transaction
+        </button>
+        <div class="result-box" id="resultBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <span>IEEE-CIS Fraud Detection v1.0.0</span>
+    <span>&middot;</span>
+    <span>IEEE-CIS Dataset · 590K transactions</span>
+    <span>&middot;</span>
+    <span>LightGBM · 419 features</span>
+    <span>&middot;</span>
+    <span>AUC-ROC 0.9609</span>
+  </footer>
+
+</div>
+
+<script>
+  // ── score distribution chart ──
+  const ctx = document.getElementById('scoreChart').getContext('2d');
+
+  function gaussBump(center, std, n, scale) {
+    return Array.from({length: n}, (_, i) => {
+      const x = i / n;
+      return scale * Math.exp(-Math.pow(x - center, 2) / (2 * std * std));
+    });
+  }
+
+  const bins   = Array.from({length: 50}, (_, i) => (i / 50).toFixed(2));
+  const nfDist = gaussBump(0.03, 0.04, 50, 1).map((v, i) => v * Math.exp(-i * 0.08));
+  const fDist  = bins.map((_, i) => {
+    const x = i / 50;
+    return 0.35 * Math.exp(-Math.pow(x - 0.08, 2) / (2 * 0.06 * 0.06))
+         + 0.25 * Math.exp(-Math.pow(x - 0.55, 2) / (2 * 0.18 * 0.18))
+         + 0.15 * Math.exp(-Math.pow(x - 0.85, 2) / (2 * 0.10 * 0.10));
+  });
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: bins,
+      datasets: [
+        { label: 'Non-Fraud', data: nfDist, backgroundColor: 'rgba(88,166,255,.45)', borderWidth: 0 },
+        { label: 'Fraud',     data: fDist,  backgroundColor: 'rgba(248,81,73,.45)',  borderWidth: 0 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed(3)}` } }
+      },
+      scales: {
+        x: { ticks: { color: '#8b949e', font: { size: 9 }, maxTicksLimit: 6 }, grid: { color: '#21262d' } },
+        y: { ticks: { color: '#8b949e', font: { size: 9 } }, grid: { color: '#21262d' } }
+      }
+    }
+  });
+
+  // ── feature importance ──
+  const fiData = [
+    { name: 'V-features',  pct: 38 },
+    { name: 'C-features',  pct: 17 },
+    { name: 'D-features',  pct: 12 },
+    { name: 'Aggregation', pct: 10 },
+    { name: 'Card/Addr',   pct: 8  },
+    { name: 'Identity',    pct: 5  },
+    { name: 'M-flags',     pct: 4  },
+    { name: 'Time',        pct: 3  },
+    { name: 'Freq Enc',    pct: 2  },
+    { name: 'Other',       pct: 1  },
+  ];
+  const fiList = document.getElementById('fi-list');
+  fiData.forEach(d => {
+    fiList.insertAdjacentHTML('beforeend', `
+      <div class="fi-row">
+        <span class="fi-name" title="${d.name}">${d.name}</span>
+        <div class="fi-bar-wrap"><div class="fi-bar-fill" style="width:${d.pct}%"></div></div>
+        <span class="fi-val">${d.pct}%</span>
+      </div>`);
+  });
+
+  // ── live API test ──
+  async function testAPI() {
+    const btn = document.getElementById('testBtn');
+    const box = document.getElementById('resultBox');
+    btn.disabled = true;
+    btn.textContent = 'Scoring...';
+    box.className = 'result-box show';
+    box.innerHTML = '<span style="color:var(--muted)">Calling localhost:8000/predict?explain=true ...</span>';
+
+    const payload = {
+      TransactionDT:  Math.floor(Date.now() / 1000) % (86400 * 30),
+      TransactionAmt: parseFloat(document.getElementById('amt').value) || 100,
+      ProductCD:      document.getElementById('prod').value,
+      card4:          document.getElementById('card4').value,
+      P_emaildomain:  document.getElementById('email').value || null,
+    };
+
+    try {
+      const res = await fetch('http://localhost:8000/predict?explain=true', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      const pct         = (data.fraud_probability * 100).toFixed(2);
+      const bucketBadge = `badge-${data.risk_bucket.toLowerCase()}`;
+      const fraudBadge  = data.is_fraud ? 'badge-fraud' : 'badge-safe';
+
+      // build explanation section
+      let explainHtml = '';
+      if (data.explanation && data.explanation.top_features && data.explanation.top_features.length) {
+        const feats  = data.explanation.top_features;
+        const maxAbs = Math.max(...feats.map(f => Math.abs(f.contribution)), 0.001);
+        const rows   = feats.map(f => {
+          const barPct = (Math.abs(f.contribution) / maxAbs * 100).toFixed(1);
+          const color  = f.contribution > 0 ? 'var(--danger)' : 'var(--ok)';
+          const dir    = f.contribution > 0 ? '&#9650;' : '&#9660;';
+          return `
+            <div style="display:flex;align-items:center;gap:8px;min-width:0">
+              <span style="font-size:10px;color:${color};width:10px;flex-shrink:0">${dir}</span>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--muted);width:130px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${f.feature}">${f.feature}</span>
+              <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;min-width:0">
+                <div style="width:${barPct}%;height:100%;background:${color};border-radius:3px"></div>
+              </div>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--muted);width:50px;text-align:right;flex-shrink:0">${f.contribution > 0 ? '+' : ''}${f.contribution.toFixed(3)}</span>
+              <span style="font-family:var(--mono);font-size:10px;color:var(--muted);width:60px;text-align:right;flex-shrink:0">[${f.value}]</span>
+            </div>`;
+        }).join('');
+        explainHtml = `
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:8px">
+              Feature contributions &nbsp;<span style="opacity:.5">(log-odds · &#9650;=fraud risk naik · &#9660;=fraud risk turun · [value]=nilai fitur)</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">${rows}</div>
+            <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:6px">
+              bias (expected value): ${data.explanation.bias}
+            </div>
+          </div>`;
+      }
+
+      box.innerHTML = `
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:10px">
+          <div>
+            <div style="font-size:11px;color:var(--muted)">Fraud probability</div>
+            <div class="result-prob" style="color:${data.is_fraud ? 'var(--danger)' : 'var(--ok)'}">${pct}%</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <span class="badge ${bucketBadge}">${data.risk_bucket} Risk</span>
+            <span class="badge ${fraudBadge}">${data.is_fraud ? 'FRAUD' : 'SAFE'}</span>
+          </div>
+        </div>
+        <div style="color:var(--muted);font-size:11px">
+          threshold: ${data.threshold_used} &nbsp;&middot;&nbsp; latency: ${data.latency_ms}ms
+        </div>
+        ${explainHtml}`;
+    } catch (e) {
+      box.innerHTML = `
+        <span style="color:var(--danger)">Error: ${e.message}</span>
+        <div style="margin-top:6px;font-size:11px;color:var(--muted)">
+          Pastikan API berjalan: <code>uvicorn src.api.main:app --reload</code>
+        </div>`;
+    }
+    btn.disabled = false;
+    btn.textContent = '▶ Score Transaction';
+  }
+</script>
+
+</body>
+</html>

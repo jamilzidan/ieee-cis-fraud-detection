@@ -1,0 +1,28 @@
+{
+  "model_name": "Alto Fraud Detection \u2014 LightGBM Baseline",
+  "algorithm": "LightGBM (GBDT)",
+  "n_features": 419,
+  "training_samples": 472432,
+  "val_samples": 118108,
+  "fraud_rate_val": 0.035,
+  "metrics": {
+    "auc_roc": 0.9609,
+    "auc_pr": 0.7951,
+    "f1": 0.6543,
+    "precision": 0.5531,
+    "recall": 0.8009
+  },
+  "threshold": 0.0925,
+  "confusion_matrix": {
+    "tn": 111301,
+    "fp": 2674,
+    "fn": 823,
+    "tp": 3310
+  },
+  "risk_thresholds": {
+    "low_max": 0.1,
+    "medium_max": 0.5
+  },
+  "business_cost_model": 0.205,
+  "saving_vs_no_model": 0.4341
+}

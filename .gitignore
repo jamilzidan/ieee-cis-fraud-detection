@@ -1,0 +1,36 @@
+# ── Data (file besar, download dari Kaggle) ──────────────────────────────────
+data/raw/
+data/processed/
+data/features/
+
+# ── Model binaries (terlalu besar untuk GitHub, regenerate dengan pipeline) ──
+models/artifacts/*.pkl
+models/artifacts/*.joblib
+
+# ── JSON artifacts yang di-generate (bukan konfigurasi) ──────────────────────
+# Boleh push: model_card.json, best_threshold.json, feature_cols.json
+# (sebagai dokumentasi hasil), tapi TIDAK wajib
+# Uncomment baris di bawah kalau mau exclude semua JSON artifacts:
+# models/artifacts/*.json
+
+# ── Python ────────────────────────────────────────────────────────────────────
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# ── OS & Editor ───────────────────────────────────────────────────────────────
+.DS_Store
+.env
+*.env.*
+Thumbs.db
+
+# ── Credentials (JANGAN PERNAH commit ini) ───────────────────────────────────
+kaggle.json
+*.pem
+*.key
+*_token*
+secrets/
+docs/interview_prep.md

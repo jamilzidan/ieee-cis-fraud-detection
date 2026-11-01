@@ -1,0 +1,10 @@
+{
+  "model": "lgbm_baseline",
+  "n_features": 419,
+  "best_iteration": 1000,
+  "auc_roc_val": 0.9609,
+  "auc_pr_val": 0.7951,
+  "f1_val_thr05": 0.7001,
+  "best_thr_f1": 0.2464,
+  "f1_val_best_thr": 0.7542
+}
